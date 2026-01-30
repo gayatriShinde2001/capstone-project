@@ -13,7 +13,7 @@ RUN npm install --only=production
 FROM node:20-alpine AS production
 WORKDIR /app
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=base /app/node_modules ./node_modules
 COPY --chown=node:node . .
 RUN chown -R appuser:appgroup /app
 USER node
