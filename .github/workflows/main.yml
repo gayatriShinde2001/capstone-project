@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
+        id: meta
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -73,13 +74,6 @@ jobs:
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
 
-      - name: Generate SemVer Tag
-        id: tagger
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: true
-          DEFAULT_BUMP: patch
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -92,7 +86,7 @@ jobs:
           context: ./services/users
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ steps.tagger.outputs.new_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ steps.meta.outputs.new_tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -103,7 +97,7 @@ jobs:
           context: ./services/orders
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ steps.tagger.outputs.new_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ steps.meta.outputs.new_tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -114,5 +108,5 @@ jobs:
           context: ./services/gateway
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:${{ steps.tagger.outputs.new_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:${{ steps.meta.outputs.new_tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:latest
