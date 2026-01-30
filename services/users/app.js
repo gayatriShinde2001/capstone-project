@@ -25,7 +25,7 @@ app.post('/users/add', async (req, res) => {
             [name, email]
         );
         const newUser = result.rows[0];
-        // Seed the cache immediately
+        
         await cache.set(`user-${newUser.id}`, JSON.stringify(newUser), { EX: 3600 });
         res.status(201).json(newUser);
     } catch (err) { res.status(500).json({ error: err.message }); }
