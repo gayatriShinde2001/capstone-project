@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: ./services/gateway
+    ports:
+      - "80:80"
+    networks:
+      - frontend
+    depends_on:
+      - users
+      - orders
+  users:
+    read_only: true
+    user: "node"
+    tmpfs:
+      - /tmp:mode=1777
+      - /home/node/.npm:mode:1777
+    build:
+      context: ./services/users
+      target: production
+    ports:
+      - "3001:3000"
+    networks:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+    depends_on:
+      user-db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+  orders:
+    read_only: true
+    user: "node"
+    tmpfs:
+      - /tmp:mode=1777
+      - /home/node/.npm:mode:1777
+    build:
+      context: ./services/orders
+      target: production
+    ports:
+      - "3002:3000"
+    networks:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+    depends_on:
+      order-db:
+        condition: service_healthy
+      rmq:
+        condition: service_healthy
+  user-db:
+    image: postgres:alpine
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: user_db
+    volumes:
+      - ./services/users/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - backend
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d user_db"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+  order-db:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+  rmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  cache:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+  registry:
+    image: registry:2
+    ports:
+      - "5000:5000"
+    restart: always
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge

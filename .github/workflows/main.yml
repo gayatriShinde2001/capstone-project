@@ -1,0 +1,118 @@
+name: Capstone CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Vulnerability scanning
+      - name: Security Scan Source Code
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+      # Build env (multi-architecture)
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build User Service (Local scan)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/users
+          load: true
+          tags: user-service:local-scan
+
+      - name: Scan User Local Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'user-service:local-scan'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+      - name: Build Orders Service (Local scan)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/orders
+          load: true
+          tags: order-service:local-scan
+
+      - name: Scan Orders Local Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'order-service:local-scan'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+      - name: Build Gateway (Local scan)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/gateway
+          load: true
+          tags: gateway-service:local-scan
+
+      - name: Scan Gateway Local Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'gateway-service:local-scan'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Generate SemVer Tag
+        id: tagger
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Tag User Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/users
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ steps.tagger.outputs.new_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & Tag Order Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/orders
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ steps.tagger.outputs.new_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & Tag Gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/gateway
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:${{ steps.tagger.outputs.new_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:latest

@@ -1,0 +1,19 @@
+services:
+  users:
+    build:
+      context: ./services/users
+      target: development
+    volumes:
+      - ./services/users:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+  orders:
+    build:
+      context: ./services/orders
+      target: development
+    volumes:
+      - ./services/orders:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
