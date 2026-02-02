@@ -8,67 +8,68 @@ app.use(express.json());
 
 let db, channel;
 const cache = redis.createClient({ url: 'redis://cache:6379' });
-
-app.get('/health', (req, res) => {
-    res.status(200).send('OK');
-});
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function init() {
-    console.log('Orders Service: Connecting to dependencies...');
-    
-    try {
-        const client = new MongoClient('mongodb://order-db:27017');
-        await client.connect();
-        db = client.db('orders_db');
-        console.log('Connected to MongoDB');
-    } catch (err) {
-        console.error('MongoDB connection failed:', err.message);
-        process.exit(1);
-    }
-
-    try {
-        await cache.connect();
-        console.log('Connected to Redis');
-    } catch (err) {
-        console.error('Redis connection failed:', err.message);
-        process.exit(1);
-    }
-
+    // this function can be handled by keeping all three connections separately
+    // keeping this as is for now 
     let connected = false;
-    while (!connected) {
+    let attempts = 10;
+
+    while (attempts > 0 && !connected) {
         try {
+            console.log(`Orders Service: Checking dependencies... (Attempts left: ${attempts})`);
+
+ 
+            const client = new MongoClient('mongodb://order-db:27017');
+            await client.connect();
+            db = client.db('orders_db');
+            console.log('Connected to MongoDB');
+
+            if (!cache) cache = redis.createClient({ url: 'redis://cache:6379' });
+            if (!cache.isOpen) {
+                await cache.connect();
+                console.log('Connected to Redis');
+            }
+
             const conn = await amqp.connect('amqp://rmq');
             channel = await conn.createChannel();
             await channel.assertQueue('order_tasks');
             console.log('Connected to RabbitMQ');
 
-            console.log('Orders Service: Consumer started...');
             channel.consume('order_tasks', async (msg) => {
                 if (msg !== null) {
                     const task = JSON.parse(msg.content.toString());
+                    console.log('RECEIVED ORDER TASK:', task);
                     const filter = { _id: new ObjectId(task.id) };
-                    console.log(' [AMQP] RECEIVED ORDER TASK:', task);
-
-                    const result = await db.collection('orders').updateOne(filter, { $set: { status: 'Processed', processedAt: new Date() } });
-                    if (result.matchedCount === 0) {
-                        console.warn(` [AMQP] No order found with ID: ${task.id}`);
-                    } else {
-                        console.log(' [AMQP] Database Updated Successfully');
-                    }
+                    await db.collection('orders').updateOne(filter, { 
+                        $set: { status: 'Processed', processedAt: new Date() } 
+                    });
                     channel.ack(msg);
-                    console.log(' [AMQP] Message Acknowledged');
                 }
             });
-
             connected = true;
         } catch (err) {
-            console.error('RabbitMQ not ready, retrying in 5 seconds...', err.message);
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            attempts--;
+            console.error(`Dependency failure: ${err.message}`);
+            if (attempts === 0) {
+                console.error('Could not connect to Order dependencies. Exiting...');
+                process.exit(1);
+            }
+            console.log('Retrying in 5 seconds...');
+            await sleep(5000);
         }
     }
 
-    console.log('Orders Service Ready and Listening on Port 3000');
+    app.get('/health', (req, res) => {
+        res.status(200).send('OK');
+    });
+
+    app.listen(3000, '0.0.0.0', () => {
+        console.log('Orders Service is ready on port 3000');
+    });
 }
+
 init();
 
 app.get('/orders/get', async (req,res) => {
@@ -126,5 +127,3 @@ app.post('/orders/add', async (req, res) => {
         res.status(500).json({ error: "Could not process order: " + err.message });
     }
 });
-
-app.listen(3000, '0.0.0.0');

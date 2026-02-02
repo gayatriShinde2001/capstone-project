@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  gateway:
+    image: ${DOCKERHUB_USERNAME}/gateway:latest
+    ports:
+      - target: 80
+        published: 8080
+        protocol: tcp
+        mode: host
+    configs:
+      - source: gateway_conf_v10
+        target: /etc/nginx/nginx.conf
+    networks:
+      - frontend
+    deploy:
+      mode: global
+      restart_policy:
+        condition: on-failure
+
+  users:
+    image: ${DOCKERHUB_USERNAME}/user-service:latest
+    read_only: true
+    user: "node"
+    tmpfs:
+      - /tmp:mode=1777
+      - /home/node/.npm:mode=1777
+    networks:
+      - frontend
+      - backend
+    environment:
+      DB_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  orders:
+    image: ${DOCKERHUB_USERNAME}/order-service:latest
+    read_only: true
+    user: "node"
+    tmpfs:
+      - /tmp:mode=1777
+      - /home/node/.npm:mode=1777
+    networks:
+      - frontend
+      - backend
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+
+  user-db:
+    image: postgres:alpine
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: user_db
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+    secrets:
+      - db_password
+    networks:
+      - backend
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+
+  order-db:
+    image: mongo:latest
+    networks:
+      - backend
+
+  rmq:
+    image: rabbitmq:3-management
+    networks:
+      - backend
+    volumes:
+      - rmq_data:/var/lib/rabbitmq
+    environment:
+      - RABBITMQ_NODENAME=rabbit@rmq
+
+  cache:
+    image: redis:alpine
+    networks:
+      - backend
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+networks:
+  frontend:
+    driver: overlay
+    attachable: true
+  backend:
+    driver: overlay
+    attachable: true
+
+secrets:
+  db_password:
+    external: true
+
+configs:
+  gateway_conf_v10:
+    external: true
+
+volumes:
+  user_db_data:
+  order_db_data:
+  rmq_data:
+  redis_data:

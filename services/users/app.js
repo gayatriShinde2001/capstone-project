@@ -1,20 +1,79 @@
 const express = require('express');
 const { Pool } = require('pg');
 const redis = require('redis');
+const fs = require('fs');
 
 const app = express();
 app.use(express.json());
 
+const getPassword = () => {
+  if (process.env.DB_PASSWORD_FILE) {
+    return fs.readFileSync(process.env.DB_PASSWORD_FILE, 'utf8').trim();
+  }
+  return process.env.DB_PASSWORD || 'password123';
+};
 const pool = new Pool({
   host: 'user-db',
   user: 'admin',
-  password: 'password123',
+  password: getPassword(),
   database: 'user_db',
   port: 5432
 });
 
 const cache = redis.createClient({ url: 'redis://cache:6379' });
-cache.connect().catch(console.error);
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function init() {
+    let connected = false;
+    let attempts = 5;
+
+    while (attempts > 0 ) {
+        try {
+            console.log(`Startup: Checking dependencies... (Attempts left: ${attempts})`);
+
+            if (!cache.isOpen) {
+                await cache.connect();
+                console.log('Connected to Redis');
+            }
+
+            await pool.query('SELECT 1');
+            console.log('Connected to Postgres');
+            connected = true; 
+            break;
+            
+        } catch (err) {
+            attempts--;
+            console.error(`Dependency failure: ${err.message}`);
+            
+            if (attempts === 0) {
+                console.error('Could not connect to dependencies. Exiting...');
+                process.exit(1); 
+            }
+
+            console.log('Retrying in 5 seconds...');
+            await sleep(5000); 
+        }
+    }
+    
+    const createTableQuery = `
+          CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100),
+            email VARCHAR(100) UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );`;
+    try {
+        await pool.query(createTableQuery);
+        console.log("Database schema verified/created");
+    } catch (err) {
+        console.error("Failed to create tables:", err.message);
+        process.exit(1);
+    }
+    app.listen(3000, () => console.log('Users Service running on 3000'));
+    console.log('User Service is ready and listening on port 3000');
+}
+
+init();
 
 app.post('/users/add', async (req, res) => {
     const { name, email } = req.body;
@@ -75,4 +134,3 @@ app.delete('/users/delete/:id', async (req, res) => {
 });
 
 app.get('/health', (req, res) => res.sendStatus(200));
-app.listen(3000, () => console.log('Users Service running on 3000'));
