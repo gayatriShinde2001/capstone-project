@@ -86,7 +86,7 @@ jobs:
           context: ./services/users
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ steps.meta.outputs.new_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ steps.meta.outputs.tags }}
             ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -97,7 +97,7 @@ jobs:
           context: ./services/orders
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ steps.meta.outputs.new_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ steps.meta.outputs.tags }}
             ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -108,5 +108,5 @@ jobs:
           context: ./services/gateway
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:${{ steps.meta.outputs.new_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:${{ steps.meta.outputs.tags }}
             ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:latest
