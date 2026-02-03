@@ -95,7 +95,7 @@ async function init() {
             }
         }
     }
-    app.listen(3000, () => console.log('Users Service running on 3000'));
+    app.listen(3000, '0.0.0.0', () => console.log('Server ready on 0.0.0.0:3000'));
     console.log('User Service is ready and listening on port 3000');
 }
 
