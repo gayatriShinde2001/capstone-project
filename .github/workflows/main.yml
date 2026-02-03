@@ -48,6 +48,12 @@ jobs:
           exit-code: '1'
           severity: 'CRITICAL'
 
+      - name: Run Automated Test - User
+        run: |
+          docker run -d --name user-test -p 3000:3000 user-service:local-scan
+          docker exec user-test npm test
+          docker stop user-test && docker rm user-test
+
       - name: Build Orders Service (Local scan)
         uses: docker/build-push-action@v5
         with:
@@ -61,6 +67,12 @@ jobs:
           image-ref: 'order-service:local-scan'
           exit-code: '1'
           severity: 'CRITICAL'
+
+      - name: Run Automated Test - Orders
+        run: |
+          docker run -d --name order-test -p 3000:3000 order-service:local-scan
+          docker exec order-test npm test
+          docker stop order-test && docker rm order-test
 
       - name: Build Gateway (Local scan)
         uses: docker/build-push-action@v5
