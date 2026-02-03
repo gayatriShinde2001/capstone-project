@@ -11,10 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        id: meta
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Generate Tag
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       # Vulnerability scanning
       - name: Security Scan Source Code
@@ -86,7 +88,7 @@ jobs:
           context: ./services/users
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ steps.meta.outputs.tags }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ steps.vars.outputs.sha_short }}
             ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -97,7 +99,7 @@ jobs:
           context: ./services/orders
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ steps.meta.outputs.tags }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ steps.vars.outputs.sha_short }}
             ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -108,5 +110,5 @@ jobs:
           context: ./services/gateway
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:${{ steps.meta.outputs.tags }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:${{ steps.vars.outputs.sha_short }}
             ${{ secrets.DOCKERHUB_USERNAME }}/gateway-service:latest
