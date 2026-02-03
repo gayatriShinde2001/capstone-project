@@ -6,6 +6,9 @@ const fs = require('fs');
 const app = express();
 app.use(express.json());
 
+app.get('/users/health', async (req, res) => {
+    res.status(200).json({ message: "OK" });
+});
 const getPassword = () => {
   if (process.env.DB_PASSWORD_FILE) {
     return fs.readFileSync(process.env.DB_PASSWORD_FILE, 'utf8').trim();
@@ -20,7 +23,14 @@ const pool = new Pool({
   port: 5432
 });
 
-const cache = redis.createClient({ url: 'redis://cache:6379' });
+const cache = redis.createClient({ 
+    url: 'redis://cache:6379',
+    socket: {
+        connectTimeout: 10000 
+    }
+});
+cache.on('error', (err) => console.error('Redis Error:', err.message));
+
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function init() {
@@ -32,10 +42,12 @@ async function init() {
             console.log(`Startup: Checking dependencies... (Attempts left: ${attempts})`);
 
             if (!cache.isOpen) {
+                console.log("Connecting to Redis...");
                 await cache.connect();
                 console.log('Connected to Redis');
             }
-
+            
+            console.log('Verifying Postgres connectivity...');
             await pool.query('SELECT 1');
             console.log('Connected to Postgres');
             connected = true; 
@@ -62,19 +74,29 @@ async function init() {
             email VARCHAR(100) UNIQUE NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );`;
-    try {
-        await pool.query(createTableQuery);
-        console.log("Database schema verified/created");
-    } catch (err) {
-        console.error("Failed to create tables:", err.message);
-        process.exit(1);
+    let schemaCreated = false;
+    let schemaAttempts = 5;
+    while (!schemaCreated && schemaAttempts > 0) {
+        try {
+            await pool.query(createTableQuery);
+            console.log("Database schema verified/created");
+            schemaCreated = true;
+        } catch (err) {
+            schemaAttempts--;
+            if (err.code === '23505') { 
+                console.warn("Schema creation collision detected, retrying...");
+                await sleep(Math.random() * 1000 + 500); 
+            } else {
+                console.error("Failed to create tables:", err.message);
+                process.exit(1);
+            }
+        }
     }
     app.listen(3000, () => console.log('Users Service running on 3000'));
     console.log('User Service is ready and listening on port 3000');
 }
 
 init();
-
 app.post('/users/add', async (req, res) => {
     const { name, email } = req.body;
     try {
@@ -128,9 +150,7 @@ app.delete('/users/delete/:id', async (req, res) => {
     const { id } = req.params;
     try {
         await pool.query('DELETE FROM users WHERE id = $1', [id]);
-        await cache.del(`user:${id}`); // Remove from cache
+        await cache.del(`user-${id}`); // Remove from cache
         res.json({ message: "User deleted" });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
-app.get('/health', (req, res) => res.sendStatus(200));

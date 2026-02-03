@@ -61,16 +61,15 @@ async function init() {
         }
     }
 
-    app.get('/health', (req, res) => {
-        res.status(200).send('OK');
-    });
-
     app.listen(3000, '0.0.0.0', () => {
         console.log('Orders Service is ready on port 3000');
     });
 }
 
 init();
+app.get('/users/health', async (req, res) => {
+    res.status(200).json({ message: "OK" });
+});
 
 app.get('/orders/get', async (req,res) => {
      const result = await db.collection('orders').find({}).toArray();

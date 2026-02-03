@@ -2,24 +2,25 @@ version: '3.8'
 
 services:
   gateway:
-    image: ${DOCKERHUB_USERNAME}/gateway:latest
+    image: ${DOCKERHUB_USERNAME}/gateway:${IMAGE_TAG:-latest}
     ports:
       - target: 80
         published: 8080
         protocol: tcp
         mode: host
     configs:
-      - source: gateway_conf_v10
+      - source: gateway_conf_v14
         target: /etc/nginx/nginx.conf
     networks:
       - frontend
+      - backend
     deploy:
       mode: global
       restart_policy:
         condition: on-failure
 
   users:
-    image: ${DOCKERHUB_USERNAME}/user-service:latest
+    image: ${DOCKERHUB_USERNAME}/user-service:${IMAGE_TAG:-latest}
     read_only: true
     user: "node"
     tmpfs:
@@ -32,18 +33,9 @@ services:
       DB_PASSWORD_FILE: /run/secrets/db_password
     secrets:
       - db_password
-    deploy:
-      replicas: 3
-      update_config:
-        parallelism: 1
-        delay: 10s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
 
   orders:
-    image: ${DOCKERHUB_USERNAME}/order-service:latest
+    image: ${DOCKERHUB_USERNAME}/order-service:${IMAGE_TAG:-latest}
     read_only: true
     user: "node"
     tmpfs:
@@ -76,6 +68,8 @@ services:
 
   order-db:
     image: mongo:latest
+    volumes:
+      - order_db_data:/data/db
     networks:
       - backend
 
@@ -92,9 +86,6 @@ services:
     image: redis:alpine
     networks:
       - backend
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
 
 networks:
   frontend:
@@ -109,11 +100,10 @@ secrets:
     external: true
 
 configs:
-  gateway_conf_v10:
+  gateway_conf_v14:
     external: true
 
 volumes:
   user_db_data:
   order_db_data:
   rmq_data:
-  redis_data:
