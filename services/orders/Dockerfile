@@ -3,9 +3,10 @@ WORKDIR /app
 COPY package*.json ./
 
 FROM base AS development
+RUN npm install -g nodemon
 RUN npm install
 COPY --chown=node:node . .
-CMD ["npm","run","dev"]
+CMD ["nodemon","app.js"]
 
 FROM base AS build
 RUN npm install --only=production

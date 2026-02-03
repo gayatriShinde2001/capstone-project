@@ -19,3 +19,14 @@ services:
     environment:
       - NODE_ENV=development
       - MONGO_URI=mongodb://order-db:27017/orders
+
+  gateway:
+    ports:
+      - "8080:80"
+    networks:
+      - frontend 
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
