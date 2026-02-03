@@ -65,6 +65,7 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
       POSTGRES_DB: user_db
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - user_db_data:/var/lib/postgresql/data
     secrets:
