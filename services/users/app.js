@@ -35,8 +35,18 @@ const cache = redis.createClient({
 cache.on('error', (err) => console.error('Redis Error:', err.message));
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const startServer = () => {
+    app.listen(3000, '0.0.0.0', () => {
+        console.log(`Server ready on 0.0.0.0:3000 [Env: ${process.env.NODE_ENV || 'development'}]`);
+    });
+};
 
 async function init() {
+    if (process.env.NODE_ENV === 'test') {
+        console.log('Detected TEST environment: Starting server immediately for test.');
+        startServer();
+        return; 
+    }
     let connected = false;
     let attempts = 10;
 
@@ -95,7 +105,7 @@ async function init() {
             }
         }
     }
-    app.listen(3000, '0.0.0.0', () => console.log('Server ready on 0.0.0.0:3000'));
+    startServer();
     console.log('User Service is ready and listening on port 3000');
 }
 

@@ -50,7 +50,7 @@ jobs:
 
       - name: Run Automated Test - User
         run: |
-          docker run -d --name user-test -p 3001:3000 user-service:local-scan
+          docker run -d --name user-test -p 3001:3000 -e NODE_ENV=test user-service:local-scan
           sleep 5
           docker exec user-test npm test
           docker stop user-test && docker rm user-test
@@ -71,7 +71,7 @@ jobs:
 
       - name: Run Automated Test - Orders
         run: |
-          docker run -d --name order-test -p 3002:3000 order-service:local-scan
+          docker run -d --name order-test -p 3002:3000 -e NODE_ENV=test order-service:local-scan
           sleep 5
           docker exec order-test npm test
           docker stop order-test && docker rm order-test

@@ -9,6 +9,11 @@ app.use(express.json());
 let db, channel;
 const cache = redis.createClient({ url: 'redis://cache:6379' });
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const startServer = () => {
+    app.listen(3000, '0.0.0.0', () => {
+        console.log(`Server ready on 0.0.0.0:3000 [Env: ${process.env.NODE_ENV || 'development'}]`);
+    });
+};
 
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
@@ -18,6 +23,11 @@ app.get('/orders/health', (req, res) => {
     res.status(200).json({ message: "OK" });
 });
 async function init() {
+    if (process.env.NODE_ENV === 'test') {
+        console.log('Detected TEST environment: Starting server immediately for test.');
+        startServer();
+        return; 
+    }
     // this function can be handled by keeping all three connections separately
     // keeping this as is for now 
     let connected = false;
@@ -67,9 +77,7 @@ async function init() {
         }
     }
 
-    app.listen(3000, '0.0.0.0', () => {
-        console.log('Orders Service is ready on port 3000');
-    });
+    startServer();
 }
 
 init();
