@@ -9,7 +9,7 @@ services:
         protocol: tcp
         mode: host
     configs:
-      - source: gateway_conf_v14
+      - source: gateway_conf_v17
         target: /etc/nginx/nginx.conf
     networks:
       - frontend
@@ -33,6 +33,15 @@ services:
       DB_PASSWORD_FILE: /run/secrets/db_password
     secrets:
       - db_password
+    depends_on:
+      - cache
+      - user-db
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
   orders:
     image: ${DOCKERHUB_USERNAME}/order-service:${IMAGE_TAG:-latest}
@@ -84,8 +93,11 @@ services:
 
   cache:
     image: redis:alpine
+    hostname: cache
     networks:
-      - backend
+      backend:
+        aliases:
+          - cache
 
 networks:
   frontend:
@@ -100,7 +112,7 @@ secrets:
     external: true
 
 configs:
-  gateway_conf_v14:
+  gateway_conf_v17:
     external: true
 
 volumes:

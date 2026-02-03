@@ -6,6 +6,9 @@ const fs = require('fs');
 const app = express();
 app.use(express.json());
 
+app.get('/health', async (req, res) => {
+    res.status(200).json({ message: "OK" });
+});
 app.get('/users/health', async (req, res) => {
     res.status(200).json({ message: "OK" });
 });
@@ -35,7 +38,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function init() {
     let connected = false;
-    let attempts = 5;
+    let attempts = 10;
 
     while (attempts > 0 ) {
         try {

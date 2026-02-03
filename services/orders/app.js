@@ -10,6 +10,13 @@ let db, channel;
 const cache = redis.createClient({ url: 'redis://cache:6379' });
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
+app.get('/orders/health', (req, res) => {
+    res.status(200).json({ message: "OK" });
+});
 async function init() {
     // this function can be handled by keeping all three connections separately
     // keeping this as is for now 
@@ -25,8 +32,7 @@ async function init() {
             await client.connect();
             db = client.db('orders_db');
             console.log('Connected to MongoDB');
-
-            if (!cache) cache = redis.createClient({ url: 'redis://cache:6379' });
+            
             if (!cache.isOpen) {
                 await cache.connect();
                 console.log('Connected to Redis');
@@ -67,9 +73,6 @@ async function init() {
 }
 
 init();
-app.get('/users/health', async (req, res) => {
-    res.status(200).json({ message: "OK" });
-});
 
 app.get('/orders/get', async (req,res) => {
      const result = await db.collection('orders').find({}).toArray();

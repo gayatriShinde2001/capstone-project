@@ -21,6 +21,6 @@ RUN apk add --no-cache wget
 
 USER node
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 --start-period=40s \
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=30s \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 CMD ["node","app.js"]
