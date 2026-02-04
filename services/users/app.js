@@ -1,10 +1,44 @@
+require('./tracing');
 const express = require('express');
+const client = require('prom-client');
 const { Pool } = require('pg');
 const redis = require('redis');
 const fs = require('fs');
 
 const app = express();
 app.use(express.json());
+
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
+const httpRequestCounter = new client.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method','route','status']
+});
+register.registerMetric(httpRequestCounter);
+
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    httpRequestCounter.inc({
+      method: req.method,
+      route: req.route ? req.route.path : req.path,
+      status: res.statusCode
+    });
+  });
+  next();
+});
+
+app.get('/metrics', async (req, res) => {
+  res.setHeader('Content-Type',register.contentType);
+  res.send(await register.metrics());
+});
+
+app.get('/users/metrics', async (req, res) => {
+  res.setHeader('Content-Type',register.contentType);
+  res.send(await register.metrics());
+});
+
 
 app.get('/health', async (req, res) => {
     res.status(200).json({ message: "OK" });

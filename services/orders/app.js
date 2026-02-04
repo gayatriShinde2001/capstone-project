@@ -1,10 +1,15 @@
+require('./tracing');
 const express = require('express');
+const client = require('prom-client');
 const { MongoClient, ObjectId } = require('mongodb');
 const redis = require('redis');
 const amqp = require('amqplib');
 
 const app = express();
 app.use(express.json());
+
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
 
 let db, channel;
 const cache = redis.createClient({ url: 'redis://cache:6379' });
@@ -14,6 +19,34 @@ const startServer = () => {
         console.log(`Server ready on 0.0.0.0:3000 [Env: ${process.env.NODE_ENV || 'development'}]`);
     });
 };
+
+const httpRequestCounter = new client.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method','route','status']
+});
+register.registerMetric(httpRequestCounter);
+
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    httpRequestCounter.inc({
+      method: req.method,
+      route: req.route ? req.route.path : req.path,
+      status: res.statusCode
+    });
+  });
+  next();
+});
+
+app.get('/metrics', async (req, res) => {
+  res.setHeader('Content-Type',register.contentType);
+  res.send(await register.metrics());
+});
+
+app.get('/orders/metrics', async (req, res) => {
+  res.setHeader('Content-Type',register.contentType);
+  res.send(await register.metrics());
+});
 
 app.get('/health', (req, res) => {
     res.status(200).send('OK');

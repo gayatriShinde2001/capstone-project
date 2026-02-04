@@ -9,6 +9,8 @@ services:
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgres://admin:password123@user-db:5432/user_db
+      - SERVICE_NAME=users-service
+      - NODE_OPTIONS=--require ./tracing.js
   orders:
     build:
       context: ./services/orders
@@ -19,12 +21,15 @@ services:
     environment:
       - NODE_ENV=development
       - MONGO_URI=mongodb://order-db:27017/orders
+      - SERVICE_NAME=orders-service
+      - NODE_OPTIONS=--require ./tracing.js
 
   gateway:
     ports:
       - "8080:80"
     networks:
-      - frontend 
+      - frontend
+
 networks:
   frontend:
     driver: bridge
