@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   gateway:
     build: ./services/gateway
@@ -67,10 +69,12 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
       POSTGRES_DB: user_db
+      PGDATA: /var/lib/postgresql/data/pgdata
     secrets:
       - db_password
     volumes:
       - ./services/users/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - user_db_data:/var/lib/postgresql/data
     networks:
       - backend
     ports:
@@ -85,6 +89,8 @@ services:
     image: mongo:latest
     ports:
       - "27017:27017"
+    volumes:
+      - order_db_data:/data/db
     networks:
       - backend
     healthcheck:
@@ -95,11 +101,14 @@ services:
 
   rmq:
     image: rabbitmq:3-management
+    hostname: rmq-node
     ports:
       - "5672:5672"
       - "15672:15672"
     networks:
       - backend
+    volumes:
+      - rmq_data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
@@ -135,3 +144,9 @@ networks:
 secrets:
   db_password:
     file: ./db_password.txt
+
+volumes:
+  user_db_data:
+  order_db_data:
+  rmq_data:
+  redis_data:

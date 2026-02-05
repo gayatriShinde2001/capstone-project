@@ -1,9 +1,16 @@
+version: '3.8'
+
 services:
   loki:
     image: grafana/loki:latest
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+    user: "10001"
+    environment:
+      - LOKI_STORAGE_DIRECTORY=/loki
     networks:
       - backend
 
@@ -21,6 +28,10 @@ services:
     image: prom/prometheus:latest
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
     ports:
       - "9090:9090"
     networks:
@@ -32,6 +43,10 @@ services:
       - "3003:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deployments/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./deployments/grafana/dashboards:/var/lib/grafana/dashboards
     networks:
       - frontend
       - backend
@@ -46,7 +61,6 @@ services:
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.0
-    container_name: cadvisor
     ports:
       - "8081:8080"
     volumes:
@@ -60,3 +74,8 @@ services:
     privileged: true
     networks:
       - backend
+
+volumes:
+  prometheus_data:
+  loki_data:
+  grafana_data:

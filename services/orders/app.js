@@ -83,7 +83,7 @@ async function init() {
 
             const conn = await amqp.connect('amqp://rmq');
             channel = await conn.createChannel();
-            await channel.assertQueue('order_tasks');
+            await channel.assertQueue('order_tasks',{ durable:true });
             console.log('Connected to RabbitMQ');
 
             channel.consume('order_tasks', async (msg) => {
@@ -97,6 +97,7 @@ async function init() {
                     channel.ack(msg);
                 }
             });
+
             connected = true;
         } catch (err) {
             attempts--;
@@ -158,7 +159,7 @@ app.post('/orders/add', async (req, res) => {
         channel.sendToQueue('order_tasks', Buffer.from(JSON.stringify({ 
             id: result.insertedId, 
             item 
-        })));
+        })), { persistent: true });
 
         res.status(201).json({ 
             message: "Order placed successfully", 

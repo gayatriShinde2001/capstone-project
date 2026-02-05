@@ -153,7 +153,7 @@ app.post('/users/add', async (req, res) => {
             [name, email]
         );
         const newUser = result.rows[0];
-        
+        console.log("Created new user:",newUser.id);
         await cache.set(`user-${newUser.id}`, JSON.stringify(newUser), { EX: 3600 });
         res.status(201).json(newUser);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -165,11 +165,15 @@ app.get('/users/:id', async (req, res) => {
     try {
         if(!isFromDb) {
             const cachedUser = await cache.get(`user-${id}`);
-            if (cachedUser) return res.json(JSON.parse(cachedUser));
+            if (cachedUser) { 
+                console.log("Fetched user", id ,"from Redis");
+                return res.json(JSON.parse(cachedUser));
+            }
+           
         }
         const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (result.rows.length === 0) return res.status(404).json({ error: "User not found" });
-
+        console.log("Fetched user", id, "from user db");
         const user = result.rows[0];
         await cache.set(`user-${id}`, JSON.stringify(user), { EX: 3600 });
         res.json(user);
@@ -188,6 +192,7 @@ app.put('/users/update/:id', async (req, res) => {
 
         const updatedUser = result.rows[0];
         await cache.set(`user-${id}`, JSON.stringify(updatedUser), { EX: 3600 });
+        console.log("Updated user", id);
         res.json(updatedUser);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -198,6 +203,7 @@ app.delete('/users/delete/:id', async (req, res) => {
     try {
         await pool.query('DELETE FROM users WHERE id = $1', [id]);
         await cache.del(`user-${id}`); // Remove from cache
+        console.log("Deleted", id);
         res.json({ message: "User deleted" });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
