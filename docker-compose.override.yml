@@ -1,5 +1,6 @@
 services:
   users:
+    read_only: false
     build:
       context: ./services/users
       target: development
@@ -12,6 +13,7 @@ services:
       - SERVICE_NAME=users-service
       - NODE_OPTIONS=--require ./tracing.js
   orders:
+    read_only: false
     build:
       context: ./services/orders
       target: development

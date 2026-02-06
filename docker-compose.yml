@@ -2,6 +2,11 @@ version: '3.8'
 
 services:
   gateway:
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:mode=1777
+      - /var/run:mode=1777
+      - /var/log/nginx:mode=1777
     build: ./services/gateway
     networks:
       - frontend
@@ -23,8 +28,8 @@ services:
       DB_PASSWORD_FILE: /run/secrets/db_password
     secrets:
       - db_password
-    ports:
-      - "3001:3000"
+    expose:
+      - "3000"
     networks:
       - frontend
       - backend
@@ -48,8 +53,8 @@ services:
       context: ./services/orders
       target: production
     command: node --require ./tracing.js app.js
-    ports:
-      - "3002:3000"
+    expose:
+      - "3000"
     networks:
       - frontend
       - backend
@@ -136,10 +141,10 @@ services:
 networks:
   frontend:
     driver: overlay
-    attachable: true
+    attachable: false
   backend:
     driver: overlay
-    attachable: true
+    attachable: false
 
 secrets:
   db_password:
